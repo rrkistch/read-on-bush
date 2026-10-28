@@ -51,7 +51,10 @@ export class TxtReadingController implements BookReaderController {
       this.autoTurn = new AutoTurnScheduler(
         {
           turnPage: async () => this.tryAdvanceLine(),
-          getVisibleText: () => this.readingBook?.getDisplayState().content ?? '',
+          getVisibleText: () => {
+            const state = this.readingBook?.getDisplayState();
+            return state ? this.services.txtDisplay.getVisibleText?.(state) ?? state.content : '';
+          },
           onStateChange: (state: AutoTurnState) => {
             if (state === 'running') {
               this.services.notifier.info('自动翻页已开启');
@@ -112,13 +115,13 @@ export class TxtReadingController implements BookReaderController {
   async jumpTo(target: BookNavigationTarget, options?: ReaderJumpOptions): Promise<void> {
     this.autoTurn?.pauseIfRunning();
     if (target.kind === 'page') {
-      this.readingBook?.jumpLine(target.pageIndex, options?.persistProgress !== false);
+      this.readingBook?.jumpLine(target.pageIndex, options?.persistProgress !== false, target.offset ?? 0);
     }
   }
 
   getCurrentLocation(): BookNavigationTarget | undefined {
     const state = this.readingBook?.getDisplayState();
-    return state ? { kind: 'page', pageIndex: state.process } : undefined;
+    return state ? { kind: 'page', pageIndex: state.process, offset: state.charOffset ?? 0 } : undefined;
   }
 
   getSearchDocument(): SearchDocument | undefined {
@@ -148,9 +151,6 @@ export class TxtReadingController implements BookReaderController {
     if (!book) {
       return false;
     }
-    if (book.getDisplayState().process >= book.contents.length - 1) {
-      return false;
-    }
-    return book.nextLine();
+    return book.nextLine(false);
   }
 }

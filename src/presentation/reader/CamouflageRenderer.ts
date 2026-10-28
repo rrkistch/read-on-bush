@@ -265,7 +265,7 @@ function fitLineToWidth(content: string, width: number): string {
 }
 
 function getWrappedDebugContentLines(template: TerminalTemplate, lineWidth: number): string[] {
-  const width = Math.max(lineWidth, minContentWidth);
+  const width = Math.max(lineWidth, 2);
   let widthCache = wrappedDebugLinesCache.get(template);
   if (!widthCache) {
     widthCache = new Map<number, string[]>();

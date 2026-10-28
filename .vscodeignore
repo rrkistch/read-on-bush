@@ -4,6 +4,7 @@
 src/**
 .gitignore
 .yarnrc
+.prettierignore
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/.eslintrc.json
@@ -22,6 +23,14 @@ node_modules/**
 !node_modules/fast-xml-parser/**
 !node_modules/fflate/**
 !node_modules/pngjs/**
+!node_modules/qrcode/**
+!node_modules/dijkstrajs/**
+!node_modules/htmlparser2/**
+!node_modules/domhandler/**
+!node_modules/domelementtype/**
+!node_modules/domutils/**
+!node_modules/dom-serializer/**
+!node_modules/entities/**
 !node_modules/@nodable/entities/**
 !node_modules/anynum/**
 !node_modules/fast-xml-builder/**
@@ -31,6 +40,7 @@ node_modules/**
 !node_modules/xml-naming/**
 !node_modules/path2d-polyfill/**
 !node_modules/pdfjs-dist/package.json
+!node_modules/pdfjs-dist/LICENSE
 !node_modules/pdfjs-dist/legacy/build/pdf.js
 !node_modules/pdfjs-dist/legacy/build/pdf.worker.js
 
@@ -49,6 +59,11 @@ node_modules/pngjs/browser.js
 
 # readme 截图仅在 GitHub 展示，不需要进扩展包。
 readme/**
+.workflow/**
+scripts/**
+weread/**
+WeReadaa/**
+releases/**
 
 # 依赖包内测试文件 / 文档。
 **/test/**

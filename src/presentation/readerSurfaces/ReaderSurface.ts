@@ -25,6 +25,7 @@ export type ReaderSurfaceFrame = {
  */
 export interface ReaderSurface extends Disposable {
   readonly onDidResize: Event<SurfaceDimensions>;
+  getDimensions?(): SurfaceDimensions | undefined;
   publishFrame(frame: ReaderSurfaceFrame): void;
   publishIdle(template: ResolvedTerminalTemplate): void;
   publishHint(text: string): void;

@@ -1,12 +1,11 @@
 import { Commands } from '../../config/commands';
+import type { TerminalCamouflageLayout } from '../../config/settings';
+import { resolveCamouflageLayout, formatCamouflageLayout, formatDebugCamouflageLayout } from './CamouflageLayout';
 import type { ResolvedTerminalTemplate } from '../readerTemplates';
 import { CamouflageDisplayBase } from './CamouflageDisplayBase';
 import type { CamouflageInputHandlers } from '../readerControls';
 import { createReaderSurfaceFrame, type ReaderSurface } from '../readerSurfaces';
 import {
-  computeResolvedEffectiveLineWidth,
-  formatResolvedCamouflageScreen,
-  formatResolvedDebugCamouflageScreen,
   resolveBuiltinTemplate,
   updateTerminalTemplate
 } from './rendering';
@@ -36,6 +35,7 @@ export type ReaderDisplaySettings = {
   lineWidth: number;
   lineCount: number;
   showChapterTitle: boolean;
+  layout?: TerminalCamouflageLayout;
 };
 
 export type PaginatedCommandIds = {
@@ -52,6 +52,7 @@ export class PaginatedReaderDisplay extends CamouflageDisplayBase {
   private lineWidth = 0;
   private lineCount = 3;
   private showChapterTitle = true;
+  private layoutMode: TerminalCamouflageLayout = 'auto';
   private readonly commandIds: PaginatedCommandIds;
 
   constructor(commandIds: PaginatedCommandIds, readerView: ReaderSurface) {
@@ -69,6 +70,10 @@ export class PaginatedReaderDisplay extends CamouflageDisplayBase {
     this.applySettings(settings);
   }
 
+  replaceBook(book: PaginatedBook): void {
+    this.book = book;
+  }
+
   unbind(): void {
     this.book = undefined;
     this.concealController.reset();
@@ -78,18 +83,19 @@ export class PaginatedReaderDisplay extends CamouflageDisplayBase {
   }
 
   getEffectiveLineWidth(): number {
-    return computeResolvedEffectiveLineWidth(
-      this.lineWidth,
-      this.dimensions?.columns,
-      this.template
-    );
+    return this.getLayout().lineWidth;
   }
 
   getLineCount(): number {
-    return this.lineCount;
+    return this.getLayout().lineCount;
   }
 
-  reveal(): void {
+  private getLayout() {
+    return resolveCamouflageLayout(this.template, this.lineWidth, this.lineCount, this.viewportDimensions, this.layoutMode);
+  }
+
+  reveal(concealed = false): void {
+    if (concealed) { this.concealController.conceal('auto'); }
     this.open();
   }
 
@@ -121,6 +127,7 @@ export class PaginatedReaderDisplay extends CamouflageDisplayBase {
     this.lineWidth = settings.lineWidth;
     this.lineCount = settings.lineCount;
     this.showChapterTitle = settings.showChapterTitle;
+    this.layoutMode = settings.layout ?? 'auto';
   }
 
   private updateTemplate(template: ResolvedTerminalTemplate): void {
@@ -138,28 +145,19 @@ export class PaginatedReaderDisplay extends CamouflageDisplayBase {
     }
 
     if (this.concealController.mode === 'debugTemplate') {
-      const screen = formatResolvedDebugCamouflageScreen(
-        this.template,
-        this.getEffectiveLineWidth(),
-        this.lineCount,
-        this.dimensions?.columns
-      );
+      const screen = formatDebugCamouflageLayout(this.getLayout());
       this.readerView.publishFrame(
         createReaderSurfaceFrame(screen, this.template, this.concealController.mode)
       );
       return;
     }
 
-    const screen = this.book.getScreen(this.getEffectiveLineWidth(), this.lineCount);
+    const layout = this.getLayout();
+    const screen = this.book.getScreen(layout.lineWidth, layout.lineCount);
     const progressLabel = this.book.getProgressLabel(this.showChapterTitle);
     const visibleProgressLabel =
       screen.images.length > 0 ? `${progressLabel} · [图 i]` : progressLabel;
-    const output = formatResolvedCamouflageScreen(
-      this.template,
-      screen.lines,
-      visibleProgressLabel,
-      this.dimensions?.columns
-    );
+    const output = formatCamouflageLayout(layout, screen.lines, visibleProgressLabel);
     this.readerView.publishFrame(
       createReaderSurfaceFrame(output, this.template, this.concealController.mode)
     );

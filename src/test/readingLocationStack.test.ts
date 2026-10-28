@@ -1,8 +1,8 @@
 import * as assert from 'assert';
 import { ReadingLocationStack } from '../domain/search';
 
-describe('ReadingLocationStack', () => {
-  it('returns search locations in reverse navigation order', () => {
+suite('ReadingLocationStack', () => {
+  test('returns search locations in reverse navigation order', () => {
     const stack = new ReadingLocationStack();
     stack.push({ bookId: 'book-1', target: { kind: 'page', pageIndex: 1 } });
     stack.push({ bookId: 'book-1', target: { kind: 'page', pageIndex: 2 } });
@@ -12,7 +12,7 @@ describe('ReadingLocationStack', () => {
     assert.strictEqual(stack.pop('book-1'), undefined);
   });
 
-  it('does not pop a location for a different book', () => {
+  test('does not pop a location for a different book', () => {
     const stack = new ReadingLocationStack();
     stack.push({ bookId: 'book-1', target: { kind: 'page', pageIndex: 1 } });
 

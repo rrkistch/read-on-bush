@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { WeReadProgress } from '../../domain/books/WeRead';
 import {
   type BookData,
   getRecentBooks,
@@ -46,7 +47,7 @@ export class BookTreeBookItem extends vscode.TreeItem {
     this.tooltip = getBookTooltip(bookData, privacyDisplayMode);
     this.iconPath = new vscode.ThemeIcon(getBookIcon(format));
     this.id = treeItemId;
-    this.contextValue = this.type;
+    this.contextValue = bookData.source?.kind === 'weread' ? 'wereadBook' : this.type;
     this.command = {
       title: this.name,
       command: Commands.OpenBook,
@@ -63,7 +64,7 @@ export class BookTreeBookItem extends vscode.TreeItem {
 
   private applyCurrentOutline(): void {
     if (this.currentChapterIndex === undefined || !this.chapters) {
-      this.description = undefined;
+      this.description = this.bookData.source && this.privacyDisplayMode !== 'private' ? '微信读书' : undefined;
       return;
     }
     if (this.privacyDisplayMode === 'private') {
@@ -143,7 +144,7 @@ function createBookTreeItem(
     book.process,
     book.category,
     book.chapters,
-    book.pdfProgress?.pageIndex ?? book.epubProgress?.chapterIndex,
+    book.wereadProgress?.chapterIndex ?? book.pdfProgress?.pageIndex ?? book.epubProgress?.chapterIndex,
     !!provider?.getOutline,
     provider?.format ?? book.format,
     privacyDisplayMode,
@@ -231,6 +232,14 @@ export class BookTreeProvider
     }
   }
 
+  updateWeReadProgress(id: string, progress: WeReadProgress): void {
+    for (const book of this.findAllBookItems(id, this.books)) {
+      book.bookData.wereadProgress = progress;
+      book.setCurrentChapter(progress.chapterIndex);
+      this._onDidChangeTreeData.fire(book);
+    }
+  }
+
   refresh(): void {
     this._onDidChangeTreeData.fire();
   }
@@ -241,7 +250,7 @@ export class BookTreeProvider
       return;
     }
     const bookIds = source
-      .filter((item): item is BookTreeBookItem => item.type === 'book')
+      .filter((item): item is BookTreeBookItem => item.type === 'book' && !item.bookData.source)
       .map((book) => book.bookId);
     if (bookIds.length === 0) {
       return;
@@ -275,6 +284,7 @@ export class BookTreeProvider
       return undefined;
     }
     if (target.type === 'group') {
+      if (target.contextValue === 'wereadGroup') { return null; }
       // 「最近阅读」分组不可作为拖拽落点。
       if (target.contextValue === 'recentGroup') {
         return null;
@@ -283,6 +293,7 @@ export class BookTreeProvider
       return target.name === uncategorizedBookGroupName ? undefined : target.name;
     }
     if (target.type === 'book') {
+      if (target.bookData.source) { return null; }
       // 拖到某本书上 = 归入该书所在分类。
       return target.category ?? undefined;
     }
@@ -353,7 +364,8 @@ export class BookTreeProvider
     candidate: BookTreeBookItem
   ): BookTreeBookItem {
     return !existing ||
-      (existing.contextValue === 'recentBook' && candidate.contextValue !== 'recentBook')
+      (/^(recentBook|wereadRecentBook)$/.test(existing.contextValue ?? '') &&
+        !/^(recentBook|wereadRecentBook)$/.test(candidate.contextValue ?? ''))
       ? candidate
       : existing;
   }
@@ -397,10 +409,22 @@ export class BookTreeProvider
   }
 
   private buildTreeItems(books: BookData[], groupBy: BookListGroupBy): BookTreeItem[] {
+    const localBooks = books.filter((book) => !book.source);
     const baseItems =
       groupBy === 'none'
-        ? books.map((book) => createBookTreeItem(book, this.registry, this.privacyDisplay))
-        : this.buildGroupedItems(books, groupBy);
+        ? localBooks.map((book) => createBookTreeItem(book, this.registry, this.privacyDisplay))
+        : this.buildGroupedItems(localBooks, groupBy);
+
+    const cloudBooks = books.filter((book) => book.source?.kind === 'weread');
+    if (cloudBooks.length) {
+      const cloud = new BookTreeGroupItem(
+        this.privacyDisplay.isPrivate ? '在线文档' : '微信读书',
+        cloudBooks.map((book) => createBookTreeItem(book, this.registry, this.privacyDisplay))
+      );
+      cloud.iconPath = new vscode.ThemeIcon('cloud');
+      cloud.contextValue = 'wereadGroup';
+      baseItems.push(cloud);
+    }
 
     const recentGroup = this.buildRecentGroup(books);
     return recentGroup ? [recentGroup, ...baseItems] : baseItems;
@@ -450,7 +474,7 @@ export class BookTreeProvider
 
     const children = recentBooks.map((book) => {
       const item = createBookTreeItem(book, this.registry, this.privacyDisplay, 'recent');
-      item.contextValue = 'recentBook';
+      item.contextValue = book.source ? 'wereadRecentBook' : 'recentBook';
       return item;
     });
 

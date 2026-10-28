@@ -17,6 +17,10 @@ export abstract class CamouflageDisplayBase {
   readonly onDidConcealContent = this.concealEmitter.event;
   readonly onDidRevealContent = this.revealEmitter.event;
 
+  protected get viewportDimensions(): SurfaceDimensions | undefined {
+    return this.readerView.getDimensions ? this.readerView.getDimensions() : this.dimensions;
+  }
+
   protected constructor(
     context: ExtensionContext | undefined,
     readerView: ReaderSurface,

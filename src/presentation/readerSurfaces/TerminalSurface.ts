@@ -3,6 +3,7 @@ import type {
   Disposable,
   Event,
   ExtensionContext,
+  ExtensionTerminalOptions,
   Pseudoterminal,
   Terminal,
   TerminalDimensions
@@ -33,12 +34,18 @@ export class TerminalSurface implements ReaderSurface, Pseudoterminal {
   private dimensions?: TerminalDimensions;
   private inputHandler?: (data: string) => void;
   private pendingOutput = '';
+  private pendingTitle = '';
   private opened = false;
   private currentTerminalName?: string;
 
-  constructor(private readonly context: ExtensionContext) {}
+  constructor(
+    private readonly context: ExtensionContext,
+    private readonly createTerminal: (options: ExtensionTerminalOptions) => Terminal = (options) => window.createTerminal(options)
+  ) {}
 
   // ── ReaderSurface ──────────────────────────────────────────────
+
+  getDimensions(): SurfaceDimensions | undefined { return this.dimensions; }
 
   publishFrame(frame: ReaderSurfaceFrame): void {
     this.ensureTerminal();
@@ -59,6 +66,8 @@ export class TerminalSurface implements ReaderSurface, Pseudoterminal {
 
   clear(): void {
     this.pendingOutput = '';
+    this.pendingTitle = '';
+    this.dimensions = undefined;
     this.terminal?.dispose();
     this.terminal = undefined;
     this.opened = false;
@@ -85,8 +94,15 @@ export class TerminalSurface implements ReaderSurface, Pseudoterminal {
 
   // ── Pseudoterminal（VS Code 终端契约） ─────────────────────────
 
-  open(): void {
+  open(initialDimensions?: TerminalDimensions): void {
+    // Resize while buffering: replace the pre-open fallback frame with one that
+    // actually fits, rather than writing an oversized frame and scrolling first.
+    if (initialDimensions) { this.setDimensions(initialDimensions); }
     this.opened = true;
+    if (this.pendingTitle) {
+      this.writeEmitter.fire(this.pendingTitle);
+      this.pendingTitle = '';
+    }
     if (this.pendingOutput) {
       this.writeEmitter.fire(this.pendingOutput);
       this.pendingOutput = '';
@@ -96,6 +112,7 @@ export class TerminalSurface implements ReaderSurface, Pseudoterminal {
   close(): void {
     this.opened = false;
     this.terminal = undefined;
+    this.dimensions = undefined;
   }
 
   setDimensions(dimensions: TerminalDimensions): void {
@@ -114,7 +131,7 @@ export class TerminalSurface implements ReaderSurface, Pseudoterminal {
       this.terminal.show(true);
       return;
     }
-    this.terminal = window.createTerminal({
+    this.terminal = this.createTerminal({
       name: this.currentTerminalName ?? 'npm: watch',
       pty: this
     });
@@ -128,13 +145,17 @@ export class TerminalSurface implements ReaderSurface, Pseudoterminal {
       return;
     }
     this.currentTerminalName = name;
+    if (!this.opened) {
+      this.pendingTitle = formatResolvedTerminalTitle(template);
+      return;
+    }
     this.write(formatResolvedTerminalTitle(template));
   }
 
   private write(text: string): void {
     if (!this.opened) {
-      // 累积：终端未就绪时标题和屏幕都可能缓冲，不能覆盖。
-      this.pendingOutput += text;
+      // Only the latest complete frame matters; title is buffered separately.
+      this.pendingOutput = text;
       return;
     }
     this.writeEmitter.fire(text);

@@ -9,6 +9,7 @@ import { ReadingSession } from './ReadingSession';
 import { SearchService } from './SearchService';
 import { PrivacyService } from './PrivacyService';
 import { AutoConcealService } from './AutoConcealService';
+import { WeReadService } from './WeReadService';
 import {
   SurfaceRouter,
   ReaderViewSurface,
@@ -31,6 +32,7 @@ export class ApplicationContext {
   public searchService: SearchService;
   public privacyDisplay: PrivacyService;
   public autoConceal: AutoConcealService;
+  public weRead: WeReadService;
 
   constructor(context: ExtensionContext) {
     this.context = context;
@@ -65,6 +67,8 @@ export class ApplicationContext {
       this.readerSurface
     );
     this.bookList = new BookCatalog(this);
+    this.weRead = new WeReadService(this);
+    context.subscriptions.push(this.weRead);
     context.subscriptions.push(this.bookList);
     this.autoConceal = new AutoConcealService(this);
     context.subscriptions.push(this.autoConceal);

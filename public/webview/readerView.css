@@ -8,7 +8,9 @@
 
 body {
   margin: 0;
-  padding: 20px;
+  padding: 8px;
+  height: 100vh;
+  overflow: hidden;
   color: var(--vscode-terminal-foreground, var(--vscode-foreground));
   background: var(--vscode-terminal-background, var(--vscode-panel-background, var(--vscode-editor-background)));
   font-family: var(--vscode-editor-font-family, var(--vscode-font-family));
@@ -17,7 +19,9 @@ body {
 }
 
 .reader-shell {
-  min-height: calc(100vh - 40px);
+  height: calc(100vh - 16px);
+  min-height: 0;
+  overflow: auto;
   outline: none;
   white-space: pre;
 }
@@ -70,7 +74,9 @@ body {
 }
 
 .reader-measure {
-  position: absolute;
+  position: fixed;
+  left: -10000px;
+  top: 0;
   visibility: hidden;
   white-space: pre;
   pointer-events: none;

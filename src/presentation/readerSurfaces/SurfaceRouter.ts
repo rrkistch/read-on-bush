@@ -15,6 +15,7 @@ export class SurfaceRouter implements ReaderSurface {
   private readonly disposables: Disposable[] = [];
   private readonly surfaces: Record<CamouflageSurface, ReaderSurface>;
   private currentId: CamouflageSurface;
+  private inputHandler?: (data: string) => void;
 
   constructor(terminal: ReaderSurface, panel: ReaderSurface, initial: CamouflageSurface) {
     this.surfaces = { terminal, readerPanel: panel };
@@ -41,6 +42,8 @@ export class SurfaceRouter implements ReaderSurface {
 
   readonly onDidResize = this.resizeEmitter.event;
 
+  getDimensions(): SurfaceDimensions | undefined { return this.current.getDimensions?.(); }
+
   /** 热切换：清理旧载体，切换指针到新载体。调用方需随后触发 render。 */
   swapTo(surface: CamouflageSurface): void {
     const target = this.surfaces[surface];
@@ -50,6 +53,9 @@ export class SurfaceRouter implements ReaderSurface {
     this.current.setInputHandler(undefined);
     this.current.clear();
     this.currentId = surface;
+    this.current.setInputHandler(this.inputHandler);
+    const dimensions = this.getDimensions();
+    if (dimensions) { this.resizeEmitter.fire(dimensions); }
   }
 
   publishFrame(frame: ReaderSurfaceFrame): void {
@@ -69,6 +75,7 @@ export class SurfaceRouter implements ReaderSurface {
   }
 
   setInputHandler(handler: ((data: string) => void) | undefined): void {
+    this.inputHandler = handler;
     this.current.setInputHandler(handler);
   }
 

@@ -11,13 +11,13 @@ function assertIncludes(value: string, ...snippets: string[]): void {
   }
 }
 
-describe('ImagePreviewPanel HTML', () => {
-  it('defaults image previews to thumbnail mode', () => {
+suite('ImagePreviewPanel HTML', () => {
+  test('defaults image previews to thumbnail mode', () => {
     assert.deepStrictEqual(IMAGE_PREVIEW_MODE_OPTIONS, ['thumbnail', 'large']);
     assert.strictEqual(defaultSettings.imagePreviewMode, 'thumbnail');
   });
 
-  it('builds a thumbnail-first view with explicit image toggling', () => {
+  test('builds a thumbnail-first view with explicit image toggling', () => {
     const html = buildImageHtml('image/png', 'abc123', 'thumbnail');
     const nonce = html.match(/style-src 'nonce-([a-f0-9]+)'/)?.[1];
 
@@ -36,7 +36,7 @@ describe('ImagePreviewPanel HTML', () => {
     assert.strictEqual(html.includes('unsafe-inline'), false);
   });
 
-  it('builds a large-first view that keeps image clicks as close actions', () => {
+  test('builds a large-first view that keeps image clicks as close actions', () => {
     const html = buildImageHtml('image/jpeg', 'def456', 'large');
 
     assertIncludes(

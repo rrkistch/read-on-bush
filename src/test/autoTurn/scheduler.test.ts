@@ -263,6 +263,30 @@ suite('AutoTurnScheduler', () => {
     assert.strictEqual(fake.pendingCount, 0);
   });
 
+  test('late async page completion cannot restart a disposed timer', async () => {
+    let complete!: (value: boolean) => void;
+    const scheduler = createScheduler({ turnPage: () => new Promise((resolve) => { complete = resolve; }) });
+    scheduler.start();
+    fake.fireNext();
+    scheduler.dispose();
+    complete(true);
+    await flushMicrotasks();
+    assert.strictEqual(fake.pendingCount, 0);
+    assert.strictEqual(scheduler.currentState, 'idle');
+  });
+
+  test('pause while a chapter is loading stays paused after it loads', async () => {
+    let complete!: (value: boolean) => void;
+    const scheduler = createScheduler({ turnPage: () => new Promise((resolve) => { complete = resolve; }) });
+    scheduler.start();
+    fake.fireNext();
+    scheduler.pause();
+    complete(true);
+    await flushMicrotasks();
+    assert.strictEqual(fake.pendingCount, 0);
+    assert.strictEqual(scheduler.currentState, 'paused');
+  });
+
   test('toggle from paused resumes with frozen remaining time', () => {
     const scheduler = createScheduler({
       turnPage: async () => true

@@ -1,5 +1,6 @@
 import { type BookData, type ChapterRef, type EpubProgress, type PdfProgress } from '../../domain/books';
 import { getStorage, setStorage } from '../../utils/storage';
+import type { WeReadProgress } from '../../domain/books/WeRead';
 
 const BOOKS_STORAGE_KEY = 'books';
 
@@ -10,9 +11,10 @@ export interface BookStore {
   flush(): Promise<void>;
   addBook(book: BookData): BookData[];
   addBooks(books: BookData[], existingBooks?: BookData[]): BookData[];
-  updateBookProcess(id: string, process: number): BookData[];
+  updateBookProcess(id: string, process: number, charOffset?: number): BookData[];
   updateEpubProgress(id: string, progress: EpubProgress): BookData[];
   updatePdfProgress(id: string, progress: PdfProgress): BookData[];
+  updateWeReadProgress(id: string, progress: WeReadProgress): BookData[];
   updateBookChapters(id: string, chapters: ChapterRef[]): BookData[];
   updateLastOpened(id: string): BookData[];
   clearLastOpened(id: string): BookData[];
@@ -104,11 +106,13 @@ export class GlobalStateBookStore implements BookStore {
     return allBooks;
   }
 
-  updateBookProcess(id: string, process: number): BookData[] {
-    return this.updateBook(id, (book) => ({
-      ...book,
-      process
-    }));
+  updateBookProcess(id: string, process: number, charOffset = 0): BookData[] {
+    return this.updateBook(id, (book) => {
+      const next = { ...book, process };
+      if (charOffset > 0) { next.txtCharOffset = charOffset; }
+      else { delete next.txtCharOffset; }
+      return next;
+    });
   }
 
   updateEpubProgress(id: string, progress: EpubProgress): BookData[] {
@@ -123,6 +127,10 @@ export class GlobalStateBookStore implements BookStore {
       ...book,
       pdfProgress: progress
     }));
+  }
+
+  updateWeReadProgress(id: string, progress: WeReadProgress): BookData[] {
+    return this.updateBook(id, (book) => ({ ...book, wereadProgress: { ...progress } }));
   }
 
   updateLastOpened(id: string): BookData[] {

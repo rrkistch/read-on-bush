@@ -37,9 +37,10 @@ export function wrapChapter(text: string, lineWidth: number): WrappedChapter {
     lineStart = nextStart;
   };
 
-  for (let i = 0; i < safe.text.length; i++) {
-    const ch = safe.text[i];
+  for (let i = 0; i < safe.text.length;) {
+    const ch = String.fromCodePoint(safe.text.codePointAt(i)!);
     const sourceOffset = safe.offsets[i];
+    i += ch.length;
 
     if (ch === '\n') {
       // 段落分隔：结束当前行，下一行从 \n 之后开始；连续 \n 不产生空行

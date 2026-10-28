@@ -42,6 +42,7 @@ export function setup(context: ExtensionContext) {
   new ConfigurationCoordinator(context, app);
 
   app.displayManager.showIdleHint();
+  void app.weRead.initialize();
 
   return app;
 }

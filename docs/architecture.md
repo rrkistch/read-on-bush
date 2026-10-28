@@ -1,6 +1,6 @@
 # 架构设计文档
 
-本文档描述 Read On Bush v2.8.0 的分层架构与模块职责。
+本文档描述 Read On Bush 的分层架构与模块职责，包括本地格式与微信读书在线书源。
 
 ## 目录结构总览
 
@@ -54,7 +54,8 @@ config ─────────→（被各层引用）
 |------|------|
 | `BookData.ts` | 书籍数据模型与进度类型（`EpubProgress` / `PdfProgress`） |
 | `BookOutline.ts` | 目录大纲类型 |
-| `TxtBook.ts` | TXT 阅读模型：扁平 `string[]` + 整数游标翻页 |
+| `TxtBook.ts` | TXT 阅读模型：扁平 `string[]`，保留整数片段游标，支持可选片段内字符位置 |
+| `TxtPagination.ts` | TXT 视口分页：将文本片段适配到共享折行引擎，返回片段索引及字符偏移 |
 | `EpubBook.ts` | EPUB 阅读模型：章节结构 + 跨章分页 |
 | `PdfBook.ts` | PDF 阅读模型：按页分页（复用 EPUB 分页引擎） |
 | `EpubPagination.ts` | 纯分页算法：折行、前/后翻页、进度百分比 |
@@ -144,7 +145,20 @@ interface BookFormatProvider {
 }
 ```
 
-新增格式只需实现 Provider 并在 `createDefaultBookFormatRegistry` 中注册，无需改动核心流程。
+新增本地格式实现 Provider 并在 `createDefaultBookFormatRegistry` 中注册。微信读书通过 `WeReadService` 注册不声明本地扩展名的 Provider；Registry 对明确的微信来源使用在线路由，本地导入和已有书籍仍按路径扩展名路由。
+
+### 微信读书是在线书源，不是本地 EPUB
+
+- `application/WeReadService.ts` 编排扫码、Cookie、账号切换和书架同步；凭据通过 `ExtensionContext.secrets` 保存，书籍元数据和阅读位置继续由 BookCatalog / BookStore 持久化。
+- `infrastructure/weread/` 隔离 HTTPS、认证续期、协议签名、正文分片还原和内存章节缓存。凭据只发往 `weread.qq.com`，请求不跟随重定向，远端脚本不执行。
+- `BookData.source` 标识账号和远端 bookId，`wereadProgress` 用真实 chapterUid 与本地文本偏移定位。`weread://` 地址不进入本地文件存在检查或目录分组。
+- `WeReadReader` 单独管理异步章节切换，不继承假定全书已加载的 `PaginatedReaderBase`；章内复用纯分页工具，显示复用 `PaginatedReaderDisplay` 和 `SurfaceRouter`。替换章节不重置隐蔽状态。
+- 首开目录、阅读会话和云进度并发准备；正文格式来自阅读页元数据，缺省时通过首分片的明确协议类型识别，不再逐章请求 `book/info`。必要元数据或分片失败时取消同组剩余请求。
+- 刷新令牌支持主动后台续期和并发合并；无刷新令牌的手动 Cookie 保留原请求契约。续期检查不作为正文加载的阻塞前置步骤。
+- 正文最多缓存三章，且只驻留内存。云端进度按章同步，回传默认关闭；本地进度先写入，网络回传串行合并最新章节，失败状态可重试。
+- `ReadingSession` 在任何异步等待前分离旧 Reader，新的打开等待旧会话收尾；账号及阅读版本标识阻止迟到响应覆盖当前状态。
+
+设计依据及取舍见 [微信读书接入设计](superpowers/specs/2026-10-26-weread-design.md)，实施和验证记录见 [实施记录](superpowers/plans/2026-10-26-weread-implementation.md)。
 
 ---
 
@@ -170,6 +184,20 @@ ReaderSurface（接口）
 ```
 
 状态栏控件依赖 `TxtReadingPort` 窄接口而非 `ApplicationContext`，通过 `ReadingSession` 暴露 TXT 能力。
+
+#### 小窗布局与分页共享一份容量
+
+`CamouflageLayout.ts` 根据模板、窗口列／行数、配置行宽及最大正文行数生成布局。默认 `auto` 在完整装饰无法容纳时切换紧凑；`compact` 始终精简，`full` 保留旧的完整输出。全部内置模板和自定义模板走同一规则，布局不修改用户的模板配置。
+
+紧凑模式先分配正文，剩余空间才保留短进度和单行标题，去掉尾部日志及常驻长快捷键提示；模板装饰可以按宽度裁剪，正文只能重新分页。渲染和下一页／上一页共同使用布局返回的 `lineWidth`、`lineCount`，不能仅在渲染后裁掉多余正文。短尾页填空行保持脚注位置稳定，隐藏模式使用同一容量。
+
+终端的初始 `open(dimensions)` 在输出前重新计算帧，缓冲只保留最新完整帧，标题独立缓冲。显示载体提供可选 `getDimensions()`，新 Reader 能读取已有尺寸，路由切换时不会使用另一个载体的旧尺寸。Webview 外壳采用固定视口高度和内部滚动，不再用内容撑大的 min-height 测量行数。
+
+TXT 的 `process` 仍表示原片段索引，新增可选 `txtCharOffset` 保存片段内位置。显示端的精确前后位置能力是可选的，旧端口仍可按整数步长使用。状态栏维持片段级导航；伪装阅读、自动翻页及位置返回使用实际可见文本和源位置，避免小窗只显示半段却跳过整段。
+
+**取舍：** 仅保持滚动条位置无法让超高的伪装日志装进小窗；新增单独的小窗皮肤又会让其他样式继续溢出。因此采用共享宽高预算，保留显式 `full` 供需要完整日志的用户选择。小窗会隐藏部分装饰，字体大小不变；窗口增大时自动恢复能容纳的完整结构。
+
+**验证：** 相关 61 项测试通过，覆盖全部样式与自定义模板的行列限制、初始终端帧、缩放／隐藏、TXT 逐字完整性及既有导航；使用生产渲染器和阅读面板脚本检查了六种 430×180 预览及进一步缩小后的表现，并操作前后翻页和隐藏／恢复。用户已登录窗口仍由用户自行验收。
 
 ---
 

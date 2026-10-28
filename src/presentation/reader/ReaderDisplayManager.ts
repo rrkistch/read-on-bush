@@ -19,6 +19,7 @@ import type { PrivacyService } from '../../application/PrivacyService';
 import { TxtCamouflageDisplay } from './TxtCamouflageDisplay';
 import type { ReaderSurface } from '../readerSurfaces';
 import type { ReadingDisplayState } from './ReaderDisplayTypes';
+import type { TxtPosition } from '../../domain/books/TxtPagination';
 
 export class ReaderDisplayManager {
   private readonly statusBar: StatusBarDisplay;
@@ -129,6 +130,27 @@ export class ReaderDisplayManager {
       getTerminalCamouflageLineCount(),
       this.getResolvedTemplate()
     );
+  }
+
+  getNextPosition(state: ReadingDisplayState): TxtPosition | undefined {
+    if (!shouldShowTerminalCamouflage()) {
+      return state.process + 1 < state.total ? { process: state.process + 1, charOffset: 0 } : undefined;
+    }
+    return this.camouflageDisplay.getNextPosition(state, getTerminalCamouflageLineWidth(),
+      getTerminalCamouflageLineCount(), this.getResolvedTemplate());
+  }
+
+  getPreviousPosition(state: ReadingDisplayState): TxtPosition | undefined {
+    if (!shouldShowTerminalCamouflage()) {
+      return state.charOffset ? { process: state.process, charOffset: 0 }
+        : state.process > 0 ? { process: state.process - 1, charOffset: 0 } : undefined;
+    }
+    return this.camouflageDisplay.getPreviousPosition(state, getTerminalCamouflageLineWidth(),
+      getTerminalCamouflageLineCount(), this.getResolvedTemplate());
+  }
+
+  getVisibleText(state: ReadingDisplayState): string {
+    return shouldShowTerminalCamouflage() ? this.camouflageDisplay.getVisibleText(state) : state.content;
   }
 
   getPrevProcessStep(state: ReadingDisplayState): number {

@@ -79,6 +79,7 @@ export interface BookReaderController {
   disposeAutoTurn?(): void;
   concealContent?(): void;
   revealContent?(): void;
+  syncProgress?(): Promise<void>;
 }
 
 export interface BookFormatProvider {

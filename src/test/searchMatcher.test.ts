@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { searchDocument } from '../domain/search';
 import type { SearchDocument } from '../domain/search';
 
-describe('SearchMatcher', () => {
+suite('SearchMatcher', () => {
   const document: SearchDocument = {
     bookId: 'book-1',
     format: 'epub',
@@ -22,7 +22,7 @@ describe('SearchMatcher', () => {
     ]
   };
 
-  it('matches text across segments and maps to the first segment', () => {
+  test('matches text across segments and maps to the first segment', () => {
     const page = searchDocument(document, '推开了那扇门', 100);
 
     assert.strictEqual(page.matches.length, 1);
@@ -34,7 +34,7 @@ describe('SearchMatcher', () => {
     assert.strictEqual(page.hasMore, false);
   });
 
-  it('normalizes full-width characters and whitespace', () => {
+  test('normalizes full-width characters and whitespace', () => {
     const normalizedDocument: SearchDocument = {
       ...document,
       segments: [{
@@ -47,7 +47,7 @@ describe('SearchMatcher', () => {
     assert.strictEqual(searchDocument(normalizedDocument, 'ABC 世界', 100).matches.length, 1);
   });
 
-  it('limits the first page and resumes from the next offset', () => {
+  test('limits the first page and resumes from the next offset', () => {
     const repeated: SearchDocument = {
       ...document,
       segments: [{

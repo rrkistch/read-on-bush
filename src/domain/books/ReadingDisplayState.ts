@@ -5,6 +5,7 @@ export type ReadingDisplayState = {
   contents: string[];
   book: BookData;
   process: number;
+  charOffset?: number;
   total: number;
   isReading: boolean;
 };

@@ -25,6 +25,8 @@ import {
 } from '../infrastructure/storage/BookStore';
 import { PrivacyService, getBookDisplayName } from './PrivacyService';
 import { DebouncedTask } from '../utils/debounce';
+import type { WeReadChapter, WeReadProgress, WeReadShelfBook } from '../domain/books/WeRead';
+import { mergeWeReadShelf, visibleWeReadBooks } from '../domain/books/WeReadShelf';
 
 type SortType =
   | 'nameAsc'
@@ -90,7 +92,7 @@ export class BookCatalog implements Disposable {
     this.bookTreeProvider = new BookTreeProvider(
       this.app.formatRegistry,
       this.privacyDisplay,
-      this.books,
+      this.getVisibleBooks(),
       getBookListGroupBy()
     );
     this.bookTreeProvider.onReassignCategory = (bookIds, category) => {
@@ -110,6 +112,39 @@ export class BookCatalog implements Disposable {
     return this.books;
   }
 
+  getVisibleBooks(): BookData[] {
+    return visibleWeReadBooks(this.books, this.app.weRead?.accountId);
+  }
+
+  async mergeWeReadBooks(accountId: string, books: WeReadShelfBook[]): Promise<void> {
+    await this.flushProgressWrite();
+    this.books = mergeWeReadShelf(this.bookStorage.getBooks(), accountId, books);
+    await this.bookStorage.saveBooks(this.books);
+    this.updateBookTreeProvider();
+  }
+
+  async syncWeReadChapters(id: string, chapters: WeReadChapter[]): Promise<void> {
+    const current = this.books.find((book) => book.id === id)?.wereadChapters;
+    if (current?.length === chapters.length && current.every((chapter, index) =>
+      chapter.uid === chapters[index].uid && chapter.title === chapters[index].title &&
+      chapter.index === chapters[index].index)) { return; }
+    this.books = this.books.map((book) => book.id === id
+      ? { ...book, chapters: chapters.map((chapter) => ({ title: chapter.title })), wereadChapters: chapters }
+      : book);
+    await this.bookStorage.saveBooks(this.books);
+    this.updateBookTreeProvider();
+  }
+
+  updateWeReadProgress(id: string, progress: WeReadProgress): void {
+    const book = this.books.find((item) => item.id === id);
+    if (!book) { return; }
+    book.wereadProgress = { ...progress };
+    this.bookTreeProvider.updateWeReadProgress(id, progress);
+    this.scheduleProgressWrite('weread:' + id, () => {
+      this.books = this.bookStorage.updateWeReadProgress(id, progress);
+    });
+  }
+
   initCommands() {
     this.context.subscriptions.push(
       commands.registerCommand(Commands.OpenBook, (event) => {
@@ -119,7 +154,7 @@ export class BookCatalog implements Disposable {
         this.openBookOutline(event);
       }),
       commands.registerCommand(Commands.DeleteBook, (event) => {
-        if (this.isBookItem(event)) {
+        if (this.isBookItem(event) && !event.bookData.source) {
           this.deleteBook(event.bookId);
         }
       }),
@@ -216,6 +251,14 @@ export class BookCatalog implements Disposable {
       return undefined;
     }
 
+    if (bookData.source?.kind === 'weread') {
+      if (this.app.weRead?.accountId !== bookData.source.accountId) {
+        message.warn('请先登录这本书所属的微信读书账号');
+        return undefined;
+      }
+      return bookData;
+    }
+
     if (fs.existsSync(bookData.url)) {
       return bookData;
     }
@@ -234,7 +277,7 @@ export class BookCatalog implements Disposable {
   }
 
   updateBookTreeProvider() {
-    this.bookTreeProvider.updateBooks(this.books, getBookListGroupBy());
+    this.bookTreeProvider.updateBooks(this.getVisibleBooks(), getBookListGroupBy());
   }
 
   togglePrivacyDisplay() {
@@ -280,9 +323,9 @@ export class BookCatalog implements Disposable {
     this.updateBookProcess(id, process);
   }
 
-  updateBookProcess(id: string, process: number): void {
+  updateBookProcess(id: string, process: number, charOffset = 0): void {
     this.scheduleProgressWrite(`process:${id}`, () => {
-      this.books = this.bookStorage.updateBookProcess(id, process);
+      this.books = this.bookStorage.updateBookProcess(id, process, charOffset);
       this.bookTreeProvider.updateBookProcess(id, process);
     });
   }
@@ -327,7 +370,7 @@ export class BookCatalog implements Disposable {
   /** 记录书籍最近打开时间（不走防抖，打开是一次性事件，需立即写入）。 */
   markLastOpened(id: string): void {
     // 如果该书已是最近打开的，最近分组顺序不变，跳过重建避免折叠已展开的目录。
-    const wasMostRecent = getRecentBooks(this.books, 1)[0]?.id === id;
+    const wasMostRecent = getRecentBooks(this.getVisibleBooks(), 1)[0]?.id === id;
     this.books = this.bookStorage.updateLastOpened(id);
     if (!wasMostRecent) {
       this.updateBookTreeProvider();
@@ -342,7 +385,7 @@ export class BookCatalog implements Disposable {
 
   /** 继续阅读上次打开的书。 */
   async continueReading(): Promise<void> {
-    const lastBook = getRecentBooks(this.books, 1)[0];
+    const lastBook = getRecentBooks(this.getVisibleBooks(), 1)[0];
 
     if (!lastBook) {
       message('暂无阅读记录');
@@ -424,7 +467,7 @@ export class BookCatalog implements Disposable {
   }
 
   async renameBook(book: BookTreeItem) {
-    if (!this.isBookItem(book)) {
+    if (!this.isBookItem(book) || book.bookData.source) {
       return;
     }
 
@@ -516,7 +559,7 @@ export class BookCatalog implements Disposable {
   }
 
   async setBookCategory(book: BookTreeItem) {
-    if (!this.isBookItem(book)) {
+    if (!this.isBookItem(book) || book.bookData.source) {
       return;
     }
 
@@ -560,7 +603,7 @@ export class BookCatalog implements Disposable {
     let changed = false;
 
     this.books = this.books.map((book) => {
-      if (idSet.has(book.id) && (book.category ?? '') !== (nextCategory ?? '')) {
+      if (!book.source && idSet.has(book.id) && (book.category ?? '') !== (nextCategory ?? '')) {
         changed = true;
         return { ...book, category: nextCategory };
       }
@@ -593,7 +636,7 @@ export class BookCatalog implements Disposable {
     const categoryName = input.trim();
 
     const picks = await window.showQuickPick(
-      this.books.map((book) => ({
+      this.books.filter((book) => !book.source).map((book) => ({
         label: this.privacyDisplay.getBookDisplayName(book),
         description: book.category ? `当前：${book.category}` : '未分类',
         picked: false,
@@ -640,7 +683,7 @@ export class BookCatalog implements Disposable {
 
     const hasExisting = this.books.some((book) => book.category === newName);
     this.books = this.books.map((book) =>
-      book.category === oldName ? { ...book, category: newName } : book
+      !book.source && book.category === oldName ? { ...book, category: newName } : book
     );
     this.bookStorage.saveBooks(this.books);
     this.updateBookTreeProvider();
@@ -677,7 +720,7 @@ export class BookCatalog implements Disposable {
   }
 
   clearBookCategory(book: BookTreeItem) {
-    if (!this.isBookItem(book)) {
+    if (!this.isBookItem(book) || book.bookData.source) {
       return;
     }
 
@@ -762,10 +805,11 @@ export class BookCatalog implements Disposable {
 
   /** 清除 EPUB/PDF 全部解析缓存；阅读进度不受影响，下次打开需重新解析。 */
   async clearCache() {
+    this.app.weRead?.clearCache();
     const size = await this.app.formatRegistry.getTotalCacheSize();
 
     if (size === 0) {
-      message('缓存为空，无需清除');
+      message('微信读书内存缓存已清除，本地解析缓存为空');
       return;
     }
 
@@ -801,7 +845,7 @@ export class BookCatalog implements Disposable {
     duplicateOnlyMessage: string
   ): Promise<void> {
     const books = this.bookStorage.getBooks();
-    const bookPathKeys = new Set(books.map((book) => this.getBookPathKey(book.url, false)));
+    const bookPathKeys = new Set(books.filter((book) => !book.source).map((book) => this.getBookPathKey(book.url, false)));
     const importTasks: Array<() => Promise<BookData>> = [];
     let skippedCount = 0;
 
@@ -834,7 +878,7 @@ export class BookCatalog implements Disposable {
     if (nextBooks.length > 0) {
       const latestBooks = this.bookStorage.getBooks();
       const latestPathKeys = new Set(
-        latestBooks.map((book) => this.getBookPathKey(book.url, false))
+        latestBooks.filter((book) => !book.source).map((book) => this.getBookPathKey(book.url, false))
       );
       const booksToAdd = nextBooks.filter((book) => {
         const key = this.getBookPathKey(book.url, false);

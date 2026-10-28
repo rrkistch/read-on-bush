@@ -13,7 +13,9 @@ export function getBookDisplayName(book: BookData, mode: PrivacyDisplayMode): st
     return book.name;
   }
 
-  return book.privacyAlias?.trim() || `Book ${book.id.slice(0, 6)}`;
+  return book.privacyAlias?.trim() || (book.source?.kind === 'weread'
+    ? 'Book ' + book.source.bookId.slice(-6)
+    : `Book ${book.id.slice(0, 6)}`);
 }
 
 export function getBookMessageName(book: BookData, mode: PrivacyDisplayMode): string {
@@ -23,6 +25,9 @@ export function getBookMessageName(book: BookData, mode: PrivacyDisplayMode): st
 export function getBookTooltip(book: BookData, mode: PrivacyDisplayMode): string {
   if (mode === 'private') {
     return getBookDisplayName(book, mode);
+  }
+  if (book.source?.kind === 'weread') {
+    return '来源：微信读书' + (book.source.author ? '\n作者：' + book.source.author : '');
   }
 
   const fileName = path.basename(book.url);

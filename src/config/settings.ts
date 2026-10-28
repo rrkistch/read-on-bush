@@ -19,6 +19,8 @@ export const TERMINAL_CAMOUFLAGE_STYLE_OPTIONS = [
 ] as const;
 export const IMAGE_PREVIEW_MODE_OPTIONS = ['thumbnail', 'large'] as const;
 export const CAMOUFLAGE_SURFACE_OPTIONS = ['terminal', 'readerPanel'] as const;
+export const TERMINAL_CAMOUFLAGE_LAYOUT_OPTIONS = ['auto', 'compact', 'full'] as const;
+export type TerminalCamouflageLayout = (typeof TERMINAL_CAMOUFLAGE_LAYOUT_OPTIONS)[number];
 
 export type BookListGroupBy = (typeof BOOK_LIST_GROUP_BY_OPTIONS)[number];
 export type ReadingDisplayTarget = (typeof READING_DISPLAY_TARGET_OPTIONS)[number];
@@ -44,6 +46,7 @@ export type ReadOnBushSettings = {
   terminalCamouflageLineWidth: number;
   terminalCamouflageLineCount: number;
   terminalCamouflageStyle: TerminalCamouflageStyle;
+  terminalCamouflageLayout: TerminalCamouflageLayout;
   terminalCamouflageCustomTemplate: unknown;
   bookListGroupBy: BookListGroupBy;
   recentBookCount: number;
@@ -54,6 +57,7 @@ export type ReadOnBushSettings = {
   autoTurnFixedSeconds: number;
   autoConcealOnFocusLoss: boolean;
   autoRevealOnFocus: boolean;
+  wereadSyncProgress: boolean;
 };
 
 export const defaultSettings: ReadOnBushSettings = {
@@ -71,6 +75,7 @@ export const defaultSettings: ReadOnBushSettings = {
   terminalCamouflageLineWidth: 0,
   terminalCamouflageLineCount: 3,
   terminalCamouflageStyle: 'claudeCli',
+  terminalCamouflageLayout: 'auto',
   terminalCamouflageCustomTemplate: null,
   bookListGroupBy: 'none',
   recentBookCount: 5,
@@ -80,7 +85,8 @@ export const defaultSettings: ReadOnBushSettings = {
   autoTurnMaxSeconds: 30,
   autoTurnFixedSeconds: 0,
   autoConcealOnFocusLoss: true,
-  autoRevealOnFocus: false
+  autoRevealOnFocus: false,
+  wereadSyncProgress: false
 };
 
 export type ReadOnBushSettingKey = keyof ReadOnBushSettings;
@@ -199,6 +205,11 @@ export function getTerminalCamouflageStyle(): TerminalCamouflageStyle {
   return normalizeTerminalCamouflageStyle(getConfigurationValue('terminalCamouflageStyle'));
 }
 
+export function getTerminalCamouflageLayout(): TerminalCamouflageLayout {
+  return normalizeEnum(getConfigurationValue('terminalCamouflageLayout'),
+    TERMINAL_CAMOUFLAGE_LAYOUT_OPTIONS, defaultSettings.terminalCamouflageLayout);
+}
+
 export function getTerminalCamouflageCustomTemplate(): unknown {
   return getConfigurationValue('terminalCamouflageCustomTemplate');
 }
@@ -298,6 +309,10 @@ export function getAutoRevealOnFocus(): boolean {
   return getConfigurationValue('autoRevealOnFocus');
 }
 
+export function getWeReadSyncProgress(): boolean {
+  return getConfigurationValue('wereadSyncProgress');
+}
+
 export function getSettings(): ReadOnBushSettings {
   return {
     lineWidth: getLineWidth(),
@@ -314,6 +329,7 @@ export function getSettings(): ReadOnBushSettings {
     terminalCamouflageLineWidth: getTerminalCamouflageLineWidth(),
     terminalCamouflageLineCount: getTerminalCamouflageLineCount(),
     terminalCamouflageStyle: getTerminalCamouflageStyle(),
+    terminalCamouflageLayout: getTerminalCamouflageLayout(),
     terminalCamouflageCustomTemplate: getTerminalCamouflageCustomTemplate(),
     bookListGroupBy: getBookListGroupBy(),
     recentBookCount: getRecentBookCount(),
@@ -323,7 +339,8 @@ export function getSettings(): ReadOnBushSettings {
     autoTurnMaxSeconds: getAutoTurnMaxSeconds(),
     autoTurnFixedSeconds: getAutoTurnFixedSeconds(),
     autoConcealOnFocusLoss: getAutoConcealOnFocusLoss(),
-    autoRevealOnFocus: getAutoRevealOnFocus()
+    autoRevealOnFocus: getAutoRevealOnFocus(),
+    wereadSyncProgress: getWeReadSyncProgress()
   };
 }
 

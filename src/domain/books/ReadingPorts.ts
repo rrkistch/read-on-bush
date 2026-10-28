@@ -1,5 +1,6 @@
 import type { EpubProgress, PdfProgress, BookData } from './BookData';
 import type { ReadingDisplayState } from './ReadingDisplayState';
+import type { TxtPosition } from './TxtPagination';
 
 export interface ReadingNotifier {
   info(text: string): void;
@@ -8,12 +9,15 @@ export interface ReadingNotifier {
 }
 
 export interface BookProgressPort {
-  updateBookProcess(id: string, process: number): void;
+  updateBookProcess(id: string, process: number, charOffset?: number): void;
   updateEpubProgress(id: string, progress: EpubProgress): void;
   updatePdfProgress(id: string, progress: PdfProgress): void;
 }
 
 export interface TxtDisplayPort {
+  getNextPosition?(state: ReadingDisplayState): TxtPosition | undefined;
+  getPreviousPosition?(state: ReadingDisplayState): TxtPosition | undefined;
+  getVisibleText?(state: ReadingDisplayState): string;
   getNextProcessStep(state: ReadingDisplayState): number;
   getPrevProcessStep(state: ReadingDisplayState): number;
   render(state: ReadingDisplayState): void;

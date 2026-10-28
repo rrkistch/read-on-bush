@@ -1,8 +1,8 @@
 {
   "name": "readOnBush",
   "displayName": "Read On Bush",
-  "description": "在 VS Code 中低调摸鱼看小说——状态栏或终端伪装窗口阅读 TXT / EPUB / PDF，内置书架管理、章节目录、进度跳转与快捷键模式。",
-  "version": "2.9.3",
+  "description": "在 VS Code 中低调阅读 TXT / EPUB / PDF 和微信读书，支持小窗自适应伪装、书架管理、章节目录与快捷键翻页。",
+  "version": "2.10.0",
   "publisher": "moyuderen",
   "author": {
     "name": "moyuderen",
@@ -171,7 +171,22 @@
           "default": 3,
           "minimum": 1,
           "maximum": 10,
-          "description": "终端伪装中展示的正文行数"
+          "description": "伪装阅读每页正文的最大行数；自动/紧凑布局会按窗口实际高度减少页容量"
+        },
+        "readOnBush.terminalCamouflageLayout": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "compact",
+            "full"
+          ],
+          "enumDescriptions": [
+            "自动：按窗口宽高保留完整样式，空间不足时切换紧凑布局",
+            "紧凑：正文优先，仅保留少量伪装与简短进度",
+            "完整：始终显示完整伪装日志，小窗需要滚动"
+          ],
+          "description": "伪装阅读布局，适用于所有内置样式和自定义模板。自动/紧凑模式按可见高度分页，不缩小字体。"
         },
         "readOnBush.terminalCamouflageStyle": {
           "type": "string",
@@ -450,6 +465,11 @@
           "type": "boolean",
           "default": false,
           "description": "VS Code 窗口恢复焦点时，是否自动恢复因失焦而隐蔽的阅读内容（手动按 q/d 隐蔽的内容不受影响）"
+        },
+        "readOnBush.wereadSyncProgress": {
+          "type": "boolean",
+          "default": false,
+          "description": "将微信读书阅读位置回传到云端（默认关闭）。第一版按章节同步，手机端从章首续读；本地仍保留章内精确位置。"
         }
       }
     },
@@ -668,6 +688,42 @@
         "command": "readOnBush.autoTurn.toggle",
         "title": "切换自动翻页",
         "category": "Read On Bush"
+      },
+      {
+        "command": "readOnBush.weread.menu",
+        "title": "微信读书",
+        "category": "Read On Bush",
+        "icon": "$(cloud)"
+      },
+      {
+        "command": "readOnBush.weread.login",
+        "title": "微信读书：扫码登录",
+        "category": "Read On Bush"
+      },
+      {
+        "command": "readOnBush.weread.setCookie",
+        "title": "微信读书：设置 Cookie",
+        "category": "Read On Bush"
+      },
+      {
+        "command": "readOnBush.weread.refresh",
+        "title": "微信读书：刷新书架",
+        "category": "Read On Bush"
+      },
+      {
+        "command": "readOnBush.weread.logout",
+        "title": "微信读书：退出登录",
+        "category": "Read On Bush"
+      },
+      {
+        "command": "readOnBush.weread.retrySync",
+        "title": "微信读书：重试进度回传",
+        "category": "Read On Bush"
+      },
+      {
+        "command": "readOnBush.weread.showDiagnostics",
+        "title": "微信读书：查看请求日志",
+        "category": "Read On Bush"
       }
     ],
     "keybindings": [
@@ -742,7 +798,7 @@
         {
           "command": "readOnBush.setPrivacyAlias",
           "group": "book@3",
-          "when": "view == readOnBush-bookList && viewItem =~ /^(book|recentBook)$/"
+          "when": "view == readOnBush-bookList && viewItem =~ /^(book|recentBook|wereadBook|wereadRecentBook)$/"
         },
         {
           "command": "readOnBush.renameCategory",
@@ -752,7 +808,7 @@
         {
           "command": "readOnBush.removeFromRecent",
           "group": "inline",
-          "when": "view == readOnBush-bookList && viewItem == recentBook"
+          "when": "view == readOnBush-bookList && viewItem =~ /^(recentBook|wereadRecentBook)$/"
         }
       ],
       "view/title": [
@@ -800,6 +856,11 @@
           "command": "readOnBush.createCategory",
           "group": "navigation",
           "when": "view == readOnBush-bookList"
+        },
+        {
+          "command": "readOnBush.weread.menu",
+          "group": "navigation@4",
+          "when": "view == readOnBush-bookList"
         }
       ]
     }
@@ -819,6 +880,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/qrcode": "^1.5.6",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
@@ -831,7 +893,9 @@
   "dependencies": {
     "fast-xml-parser": "^5.10.1",
     "fflate": "^0.8.3",
+    "htmlparser2": "^9.1.0",
     "pdfjs-dist": "^3.11.174",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4"
   }
 }

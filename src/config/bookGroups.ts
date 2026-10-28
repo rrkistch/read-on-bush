@@ -5,6 +5,9 @@ import { type BookListGroupBy } from './settings';
 export const uncategorizedBookGroupName = '未分类';
 
 export function getBookGroupName(book: BookData, groupBy: BookListGroupBy): string {
+  if (book.source?.kind === 'weread') {
+    return '微信读书';
+  }
   if (groupBy === 'category') {
     return book.category || uncategorizedBookGroupName;
   }

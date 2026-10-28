@@ -10,12 +10,12 @@ import {
 import { formatResolvedTerminalIdleScreen } from '../reader/rendering';
 import { STYLE_SGR_ENTRIES, type ResolvedTerminalTemplate } from '../readerTemplates';
 import { CAMOUFLAGE_INPUT_KEYS } from '../readerControls';
-import type { ReaderSurface, ReaderSurfaceFrame } from './ReaderSurface';
+import type { ReaderSurface, ReaderSurfaceFrame, SurfaceDimensions } from './ReaderSurface';
 import { createReaderSurfaceFrame } from './ReaderFrame';
 
 export const readerViewId = 'readOnBush-readerView';
 
-const minColumns = 20;
+const minColumns = 2;
 const maxColumns = 1000;
 const minRows = 1;
 const maxRows = 500;
@@ -29,6 +29,8 @@ export class ReaderViewSurface implements vscode.WebviewViewProvider, ReaderSurf
   private latestFrame?: ReaderViewFrame;
 
   readonly onDidResize = this.resizeEmitter.event;
+
+  getDimensions(): SurfaceDimensions | undefined { return this.dimensions; }
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -76,6 +78,7 @@ export class ReaderViewSurface implements vscode.WebviewViewProvider, ReaderSurf
       webviewView.onDidDispose(() => {
         if (this.webviewView === webviewView) {
           this.webviewView = undefined;
+          this.dimensions = undefined;
         }
         this.disposeWebviewDisposables();
       }),

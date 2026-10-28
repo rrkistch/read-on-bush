@@ -9,5 +9,6 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export async function deactivate(): Promise<void> {
+  await app?.readingSession.closeCurrent();
   await app?.bookList.flushProgressWrite();
 }

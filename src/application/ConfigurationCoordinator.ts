@@ -14,6 +14,7 @@ import {
 } from '../config/settings';
 
 const displayRefreshSettingKeys: readonly ReadOnBushSettingKey[] = [
+  'terminalCamouflageLayout',
   'statusBarPrefix',
   'showProgress',
   'displayTarget',
@@ -23,6 +24,8 @@ const displayRefreshSettingKeys: readonly ReadOnBushSettingKey[] = [
 ];
 
 const readingSessionRefreshSettingKeys: readonly ReadOnBushSettingKey[] = [
+  'terminalCamouflageLayout',
+  'wereadSyncProgress',
   'showChapterTitle',
   'terminalCamouflageLineWidth',
   'terminalCamouflageLineCount',

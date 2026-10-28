@@ -1,0 +1,20 @@
+Read On Bush 2.10.0 分享版
+
+包含微信读书、小窗自适应伪装，以及 TXT / EPUB / PDF 阅读。
+
+安装（需要 VS Code 1.85 或更高版本）：
+1. 打开 VS Code，按 Ctrl+Shift+P。
+2. 搜索并运行“扩展：从 VSIX 安装…”（Extensions: Install from VSIX…）。
+3. 选择 readOnBush-2.10.0.vsix，按提示安装并重载窗口。
+不需要安装 Node.js，也不需要源码。
+
+开始使用：
+- Ctrl+Shift+P → Read On Bush: 微信读书 → 扫码登录自己的账号。
+- 左侧活动栏 Read On Bush → 书架，点击书籍开始阅读。
+- 找不到书架时：Ctrl+Shift+P → 视图：打开视图… → 书架。
+- 设置：Ctrl+,，搜索 Read On Bush。
+- 小窗布局默认 auto，空间不足时自动精简；搜索 Terminal Camouflage Layout，选 compact 可始终紧凑。
+- 阅读区内 n/p 或左右方向键翻页，a 自动翻页，q/d 隐蔽。
+
+每个人需自行登录；安装包不包含分享者的账号、书架或阅读记录。
+云端进度回传默认关闭，可在设置中自行开启。

@@ -11,6 +11,7 @@ export type PathKind = 'supported' | 'convertible' | 'unknown';
 
 export class BookFormatRegistry {
   private readonly providersByExtension = new Map<string, BookFormatProvider>();
+  private readonly providersByFormat = new Map<string, BookFormatProvider>();
   // 可识别但非原生支持、需引导用户外部转换的扩展名（如 mobi/azw3/pdf）。
   private readonly convertibleExtensions = new Set<string>();
 
@@ -24,6 +25,7 @@ export class BookFormatRegistry {
   }
 
   register(provider: BookFormatProvider): void {
+    this.providersByFormat.set(provider.format, provider);
     for (const extension of provider.supportedExtensions) {
       this.providersByExtension.set(normalizeExtension(extension), provider);
     }
@@ -54,6 +56,9 @@ export class BookFormatRegistry {
    * 导入时若需要严格报错，用 getProviderByPath。
    */
   getProviderForBook(book: BookData): BookFormatProvider | undefined {
+    if (book.source?.kind === 'weread') {
+      return this.providersByFormat.get('weread');
+    }
     return this.providersByExtension.get(getFileExtension(book.url));
   }
 

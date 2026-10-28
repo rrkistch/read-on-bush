@@ -1,4 +1,5 @@
 import type { BookOutlineItem } from './BookOutline';
+import type { WeReadProgress, WeReadSource } from './WeRead';
 
 export type BookFormat = 'txt' | 'epub' | 'pdf' | 'mobi' | 'azw3' | (string & {});
 
@@ -23,6 +24,7 @@ export type BookData = {
   id: string;
   name: string;
   process: number;
+  txtCharOffset?: number;
   url: string;
   children?: BookData[];
   category?: string;
@@ -34,6 +36,9 @@ export type BookData = {
   pdfProgress?: PdfProgress;
   chapters?: ChapterRef[];
   lastOpenedAt?: number;
+  source?: WeReadSource;
+  wereadProgress?: WeReadProgress;
+  wereadChapters?: import('./WeRead').WeReadChapter[];
 };
 
 export type { BookOutlineItem } from './BookOutline';

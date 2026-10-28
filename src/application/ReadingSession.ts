@@ -17,6 +17,7 @@ import type { ApplicationContext } from './ApplicationContext';
 export class ReadingSession implements TxtReadingPort {
   private currentReader?: BookReaderController;
   private openGeneration = 0;
+  private closing?: Promise<void>;
   private readonly formatEmitter = new EventEmitter<BookFormat | undefined>();
 
   constructor(private readonly app: ApplicationContext) {
@@ -38,8 +39,9 @@ export class ReadingSession implements TxtReadingPort {
   }
 
   async open(book: BookData): Promise<void> {
-    await this.closeCurrent();
     const generation = ++this.openGeneration;
+    await this.releaseCurrent();
+    if (generation !== this.openGeneration) { return; }
     const provider = this.app.formatRegistry.getProviderForBook(book);
 
     if (!provider) {
@@ -47,19 +49,25 @@ export class ReadingSession implements TxtReadingPort {
       return;
     }
 
-    const reader = await provider.createReader({ book, services: this.createReaderServices() });
+    const reader = provider.createReader({ book, services: this.createReaderServices() });
     this.currentReader = reader;
-    const opened = await reader.open();
+    let opened: boolean;
+    try { opened = await reader.open(); }
+    catch {
+      if (generation === this.openGeneration && this.currentReader === reader) {
+        await this.releaseCurrent();
+        this.app.notifier.error('打开书籍失败，请重试');
+        this.app.showIdleReaderHint();
+      }
+      return;
+    }
     if (generation !== this.openGeneration || this.currentReader !== reader) {
-      await reader.close();
-      reader.dispose?.();
+      // The newer open/close already owns cleanup. Closing again could erase its surface.
       return;
     }
 
     if (!opened) {
-      this.currentReader = undefined;
-      reader.dispose?.();
-      this.formatEmitter.fire(undefined);
+      await this.releaseCurrent();
       this.app.showIdleReaderHint();
       return;
     }
@@ -87,23 +95,27 @@ export class ReadingSession implements TxtReadingPort {
   }
 
   async closeCurrent(): Promise<void> {
-    this.openGeneration += 1;
-    if (!this.currentReader) {
-      return;
-    }
+    const generation = ++this.openGeneration;
+    await this.releaseCurrent();
+    if (generation === this.openGeneration && !this.currentReader) { this.app.showIdleReaderHint(); }
+  }
 
-    this.currentReader.disposeAutoTurn?.();
-
-    // 翻页进度是防抖写入的，关闭前立即 flush 并等待持久化完成，确保最后一次进度不丢失。
-    await this.app.bookList.flushProgressWrite();
-
+  private async releaseCurrent(): Promise<void> {
     const reader = this.currentReader;
-    this.app.searchService.clear(reader.book.id);
+    if (!reader) { await this.closing; return; }
+    // Detach synchronously, before any flush/network await can admit another open.
     this.currentReader = undefined;
-    await reader.close();
-    reader.dispose?.();
+    reader.disposeAutoTurn?.();
+    this.app.searchService.clear(reader.book.id);
     this.formatEmitter.fire(undefined);
-    this.app.showIdleReaderHint();
+    const closing = (async () => {
+      try {
+        await Promise.all([this.app.bookList.flushProgressWrite(), reader.close()]);
+      } finally { reader.dispose?.(); }
+    })();
+    this.closing = closing;
+    try { await closing; }
+    finally { if (this.closing === closing) { this.closing = undefined; } }
   }
 
   refreshSettings(): void {

@@ -3,7 +3,8 @@ import {
   getShowChapterTitle,
   getTerminalCamouflageLineCount,
   getTerminalCamouflageLineWidth,
-  getTerminalCamouflageTemplateSettings
+  getTerminalCamouflageTemplateSettings,
+  getTerminalCamouflageLayout
 } from '../../config/settings';
 import type { ResolvedTerminalTemplate } from '../readerTemplates';
 import type { ReaderDisplaySettings } from './PaginatedReaderDisplay';
@@ -22,6 +23,7 @@ export function getReaderDisplaySettings(
     template: privacyDisplay.applyTerminalPrivacy(template),
     lineWidth: getTerminalCamouflageLineWidth(),
     lineCount: getTerminalCamouflageLineCount(),
-    showChapterTitle: getShowChapterTitle() && !privacyDisplay.isPrivate
+    showChapterTitle: getShowChapterTitle() && !privacyDisplay.isPrivate,
+    layout: getTerminalCamouflageLayout()
   };
 }

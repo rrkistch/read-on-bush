@@ -29,6 +29,7 @@ export class AutoTurnScheduler {
   private state: AutoTurnState = 'idle';
   private deadline?: number;
   private remainingMs = 0;
+  private timerGeneration = 0;
 
   constructor(
     private readonly callbacks: AutoTurnSchedulerCallbacks,
@@ -115,15 +116,17 @@ export class AutoTurnScheduler {
 
   private scheduleTimer(ms: number): void {
     this.clearTimer();
+    const generation = this.timerGeneration;
     this.deadline = Date.now() + ms;
-    this.timer = setTimeout(() => void this.handleTimer(), ms);
+    this.timer = setTimeout(() => void this.handleTimer(generation), ms);
   }
 
-  private async handleTimer(): Promise<void> {
+  private async handleTimer(generation: number): Promise<void> {
     this.timer = undefined;
     this.deadline = undefined;
     try {
       const advanced = await this.callbacks.turnPage();
+      if (generation !== this.timerGeneration || this.state !== 'running') { return; }
       if (!advanced) {
         this.state = 'idle';
         this.remainingMs = 0;
@@ -133,6 +136,7 @@ export class AutoTurnScheduler {
       this.remainingMs = this.computeDelayMs();
       this.scheduleTimer(this.remainingMs);
     } catch (error) {
+      if (generation !== this.timerGeneration || this.state !== 'running') { return; }
       this.state = 'idle';
       this.remainingMs = 0;
       this.fireStateChange();
@@ -145,6 +149,7 @@ export class AutoTurnScheduler {
   }
 
   private clearTimer(): void {
+    this.timerGeneration++;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = undefined;

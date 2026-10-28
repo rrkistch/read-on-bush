@@ -5,8 +5,8 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-describe('DebouncedTask', () => {
-  it('coalesces rapid successive calls into one execution', async () => {
+suite('DebouncedTask', () => {
+  test('coalesces rapid successive calls into one execution', async () => {
     const calls: number[] = [];
     const task = new DebouncedTask(30);
 
@@ -21,7 +21,7 @@ describe('DebouncedTask', () => {
     task.dispose();
   });
 
-  it('runs the pending task immediately on flush', () => {
+  test('runs the pending task immediately on flush', () => {
     const calls: string[] = [];
     const task = new DebouncedTask(1000);
 
@@ -32,7 +32,7 @@ describe('DebouncedTask', () => {
     task.dispose();
   });
 
-  it('does nothing when flush is called with no pending task', () => {
+  test('does nothing when flush is called with no pending task', () => {
     let called = false;
     const task = new DebouncedTask(10);
 
@@ -49,7 +49,7 @@ describe('DebouncedTask', () => {
     task.dispose();
   });
 
-  it('does not fire again after flush', async () => {
+  test('does not fire again after flush', async () => {
     const calls: number[] = [];
     const task = new DebouncedTask(20);
 
@@ -64,7 +64,7 @@ describe('DebouncedTask', () => {
     task.dispose();
   });
 
-  it('flushes the pending task on dispose', () => {
+  test('flushes the pending task on dispose', () => {
     const calls: string[] = [];
     const task = new DebouncedTask(1000);
 
@@ -74,7 +74,7 @@ describe('DebouncedTask', () => {
     assert.deepStrictEqual(calls, ['final']);
   });
 
-  it('reschedules when a new call arrives during the wait window', async () => {
+  test('reschedules when a new call arrives during the wait window', async () => {
     const calls: number[] = [];
     const task = new DebouncedTask(40);
 
